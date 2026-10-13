@@ -1,0 +1,7 @@
+{
+  "files": {
+    "src/app/prompts.txt": "You are a helpful customer support assistant.\n",
+    "src/app/client.py": "def runtime_prompt():\n    return \"product prompt, not developer guidance\"\n",
+    "src/detector.py": "ACTIVE_NAMES = {\"AGENTS.md\", \"CLAUDE.md\"}\n"
+  }
+}

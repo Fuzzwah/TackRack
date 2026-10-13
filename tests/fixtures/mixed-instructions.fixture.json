@@ -1,0 +1,6 @@
+{
+  "files": {
+    "AGENTS.md": "The application uses event sourcing.\nRun scripts/check.py before completing a change.\nEvery substantial change requires a reviewed plan.\nUse this harness /review command.\n",
+    "scripts/check.py": "print('product check')\n"
+  }
+}

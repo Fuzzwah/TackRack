@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tackrack"
+version = "0.1.0"
+description = "Local-first evidence-based AI development boundary auditor"
+requires-python = ">=3.12"
+dependencies = ["typer>=0.16,<1", "rich>=14,<15", "pydantic>=2.11,<3", "httpx>=0.28,<1", "PyYAML>=6,<7"]
+
+[project.scripts]
+tackrack = "tackrack.cli:app"
+
+[project.entry-points."tackrack.sources.v1"]
+local-git = "tackrack.plugins.sources.local_git:LocalGitSource"
+github = "tackrack.plugins.sources.github:GitHubSource"
+
+[project.entry-points."tackrack.detectors.v1"]
+local-boundary = "tackrack.plugins.detectors:BoundaryDetector"
+
+[project.entry-points."tackrack.adapters.v1"]
+manual = "tackrack.plugins.manual:ManualAdapter"
+
+[dependency-groups]
+dev = ["pytest>=8.3,<10", "ruff>=0.12,<1", "mypy>=1.16,<2", "types-PyYAML>=6,<7", "hatchling==1.27.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tackrack"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src/tackrack", "/tests", "/scripts", "/docs", "/README.md", "/CHANGELOG.md", "/pyproject.toml", "/uv.lock", "/.gitignore"]
+exclude = [".agents", ".git", ".venv", "__pycache__", "*.pyc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [".agents"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src"]
+strict = true
+exclude = ["^\\.agents/"]

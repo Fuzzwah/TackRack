@@ -1,0 +1,14 @@
+{
+  "config_sections": {
+    "core": {
+      "fsmonitor": "touch ${fixture_marker}"
+    },
+    "diff.evil": {
+      "textconv": "touch ${fixture_marker}"
+    },
+    "include": {
+      "path": "${unapproved_path}"
+    }
+  },
+  "expected": "partial when include exists; no execution or target writes"
+}

@@ -1,0 +1,236 @@
+{
+  "$defs": {
+    "FileEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Digest"
+        },
+        "link_target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Link Target"
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string"
+        },
+        "object_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Object Id"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "path_bytes": {
+          "title": "Path Bytes",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size"
+        },
+        "stage": {
+          "default": 0,
+          "title": "Stage",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "path_bytes",
+        "revision",
+        "mode"
+      ],
+      "title": "FileEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "binding_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Binding Id"
+    },
+    "branch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Branch"
+    },
+    "checkout_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checkout Id"
+    },
+    "ended_at": {
+      "title": "Ended At",
+      "type": "string"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/FileEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "fingerprint": {
+      "default": "",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "git_common_dir": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Git Common Dir"
+    },
+    "head": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Head"
+    },
+    "object_format": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Object Format"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "root": {
+      "title": "Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "additionalProperties": true,
+      "title": "Scope",
+      "type": "object"
+    },
+    "started_at": {
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "default": "stable",
+      "enum": [
+        "stable",
+        "changed_during_scan",
+        "incomplete"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "root"
+  ],
+  "title": "Snapshot",
+  "type": "object"
+}

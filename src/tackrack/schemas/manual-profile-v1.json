@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "ManualRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "external_workflow_state": {
+          "const": "required",
+          "default": "required",
+          "title": "External Workflow State",
+          "type": "string"
+        },
+        "model_invocation": {
+          "const": "not_required",
+          "default": "not_required",
+          "title": "Model Invocation",
+          "type": "string"
+        },
+        "project_resource_references": {
+          "const": "required",
+          "default": "required",
+          "title": "Project Resource References",
+          "type": "string"
+        }
+      },
+      "title": "ManualRequirements",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "adapter": {
+      "const": "manual",
+      "title": "Adapter",
+      "type": "string"
+    },
+    "context_file": {
+      "title": "Context File",
+      "type": "string"
+    },
+    "enabled": {
+      "const": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "name": {
+      "const": "manual",
+      "default": "manual",
+      "title": "Name",
+      "type": "string"
+    },
+    "render_strategy": {
+      "const": "manual",
+      "title": "Render Strategy",
+      "type": "string"
+    },
+    "requirements": {
+      "$ref": "#/$defs/ManualRequirements"
+    },
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "adapter",
+    "enabled",
+    "render_strategy",
+    "context_file"
+  ],
+  "title": "ManualProfile",
+  "type": "object"
+}

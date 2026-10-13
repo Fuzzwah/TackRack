@@ -1,0 +1,6 @@
+{
+  "files": {
+    "scripts/verify.py": "print(\"Shared project-owned check\")\n",
+    "AGENTS.md": "Run scripts/verify.py before completing the workflow.\n"
+  }
+}

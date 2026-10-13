@@ -1,0 +1,8 @@
+{
+  "files": {
+    ".gitignore": "/.agents\n",
+    "src/detector.py": "NAMES = {\"AGENTS.md\"}\n",
+    ".agents/profiles/manual/context.md": "Explicit manual context\n"
+  },
+  "independent_companion": true
+}

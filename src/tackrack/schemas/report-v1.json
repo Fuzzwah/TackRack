@@ -1,0 +1,900 @@
+{
+  "$defs": {
+    "Attachment": {
+      "additionalProperties": false,
+      "properties": {
+        "exclusion_effective": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclusion Effective"
+        },
+        "independent": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Independent"
+        },
+        "kind": {
+          "default": "absent",
+          "title": "Kind",
+          "type": "string"
+        },
+        "layout": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layout"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "registered": {
+          "default": false,
+          "title": "Registered",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "slot": {
+          "title": "Slot",
+          "type": "string"
+        },
+        "snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trust": {
+          "default": "not_present",
+          "enum": [
+            "trusted",
+            "untrusted",
+            "not_present"
+          ],
+          "title": "Trust",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slot"
+      ],
+      "title": "Attachment",
+      "type": "object"
+    },
+    "Component": {
+      "additionalProperties": false,
+      "properties": {
+        "component_id": {
+          "title": "Component Id",
+          "type": "string"
+        },
+        "configured": {
+          "default": "yes",
+          "title": "Configured",
+          "type": "string"
+        },
+        "consumers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Consumers",
+          "type": "array"
+        },
+        "disposition": {
+          "title": "Disposition",
+          "type": "string"
+        },
+        "enforced": {
+          "default": "unknown",
+          "title": "Enforced",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "observed": {
+          "default": "unknown",
+          "title": "Observed",
+          "type": "string"
+        },
+        "ownership": {
+          "title": "Ownership",
+          "type": "string"
+        },
+        "ownership_spans": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Ownership Spans",
+          "type": "array"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "referenced": {
+          "default": "unknown",
+          "title": "Referenced",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_id",
+        "scope",
+        "path",
+        "kind",
+        "ownership",
+        "disposition",
+        "evidence_ids"
+      ],
+      "title": "Component",
+      "type": "object"
+    },
+    "Coverage": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "title": "Capability",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "result_count": {
+          "default": 0,
+          "title": "Result Count",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "default": "requested scope",
+          "title": "Scope",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "complete",
+            "partial",
+            "not_inspected",
+            "permission_denied",
+            "unsupported",
+            "unavailable",
+            "rate_limited",
+            "error"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "capability",
+        "status"
+      ],
+      "title": "Coverage",
+      "type": "object"
+    },
+    "EvidenceRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_end": {
+          "default": 0,
+          "title": "Byte End",
+          "type": "integer"
+        },
+        "byte_start": {
+          "default": 0,
+          "title": "Byte Start",
+          "type": "integer"
+        },
+        "collected_at": {
+          "title": "Collected At",
+          "type": "string"
+        },
+        "digest": {
+          "title": "Digest",
+          "type": "string"
+        },
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "excerpt": {
+          "default": "",
+          "title": "Excerpt",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "path_bytes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path Bytes"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "redacted": {
+          "default": false,
+          "title": "Redacted",
+          "type": "boolean"
+        },
+        "revision": {
+          "default": "working",
+          "title": "Revision",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "default": "project",
+          "title": "Scope",
+          "type": "string"
+        },
+        "sensitivity": {
+          "default": "ordinary",
+          "title": "Sensitivity",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_version": {
+          "default": "0.1.0",
+          "title": "Source Version",
+          "type": "string"
+        },
+        "truncated": {
+          "default": false,
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "source_id",
+        "kind",
+        "digest",
+        "collected_at"
+      ],
+      "title": "EvidenceRecord",
+      "type": "object"
+    },
+    "FileEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Digest"
+        },
+        "link_target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Link Target"
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string"
+        },
+        "object_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Object Id"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "path_bytes": {
+          "title": "Path Bytes",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size"
+        },
+        "stage": {
+          "default": 0,
+          "title": "Stage",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "path_bytes",
+        "revision",
+        "mode"
+      ],
+      "title": "FileEntry",
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "properties": {
+        "activity": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Activity",
+          "type": "object"
+        },
+        "blocking": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blocking",
+          "type": "array"
+        },
+        "component_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Component Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "default": "high",
+          "title": "Confidence",
+          "type": "string"
+        },
+        "disposition": {
+          "default": "review",
+          "title": "Disposition",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "finding_id": {
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "ownership": {
+          "default": "unknown",
+          "title": "Ownership",
+          "type": "string"
+        },
+        "recommended_action": {
+          "default": "Review evidence before authorising a separate remediation.",
+          "title": "Recommended Action",
+          "type": "string"
+        },
+        "relationship_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Relationship Ids",
+          "type": "array"
+        },
+        "risk": {
+          "default": "",
+          "title": "Risk",
+          "type": "string"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "default": "1",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "rule_id",
+        "title",
+        "explanation",
+        "severity"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "Relationship": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "default": "medium",
+          "title": "Confidence",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "relationship_id": {
+          "title": "Relationship Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source_component": {
+          "title": "Source Component",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "unresolved": {
+          "default": true,
+          "title": "Unresolved",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "relationship_id",
+        "source_component",
+        "target",
+        "kind",
+        "evidence_ids"
+      ],
+      "title": "Relationship",
+      "type": "object"
+    },
+    "Snapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "binding_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Binding Id"
+        },
+        "branch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Branch"
+        },
+        "checkout_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checkout Id"
+        },
+        "ended_at": {
+          "title": "Ended At",
+          "type": "string"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/FileEntry"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "fingerprint": {
+          "default": "",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "git_common_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Git Common Dir"
+        },
+        "head": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Head"
+        },
+        "object_format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Object Format"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "root": {
+          "title": "Root",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "additionalProperties": true,
+          "title": "Scope",
+          "type": "object"
+        },
+        "started_at": {
+          "title": "Started At",
+          "type": "string"
+        },
+        "status": {
+          "default": "stable",
+          "enum": [
+            "stable",
+            "changed_during_scan",
+            "incomplete"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "root"
+      ],
+      "title": "Snapshot",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Artifacts",
+      "type": "array"
+    },
+    "attachment": {
+      "$ref": "#/$defs/Attachment"
+    },
+    "collected_at": {
+      "title": "Collected At",
+      "type": "string"
+    },
+    "command": {
+      "title": "Command",
+      "type": "string"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/$defs/Component"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "coverage": {
+      "items": {
+        "$ref": "#/$defs/Coverage"
+      },
+      "title": "Coverage",
+      "type": "array"
+    },
+    "coverage_result": {
+      "default": "partial",
+      "enum": [
+        "complete",
+        "partial"
+      ],
+      "title": "Coverage Result",
+      "type": "string"
+    },
+    "errors": {
+      "items": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceRecord"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "exit_code": {
+      "default": 0,
+      "title": "Exit Code",
+      "type": "integer"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "operation_id": {
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "policy_result": {
+      "default": "inconclusive",
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive"
+      ],
+      "title": "Policy Result",
+      "type": "string"
+    },
+    "project": {
+      "$ref": "#/$defs/Snapshot"
+    },
+    "relationships": {
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      },
+      "title": "Relationships",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "snapshot_status": {
+      "default": "current",
+      "enum": [
+        "current",
+        "historical",
+        "unstable"
+      ],
+      "title": "Snapshot Status",
+      "type": "string"
+    },
+    "status": {
+      "default": "completed",
+      "title": "Status",
+      "type": "string"
+    },
+    "verdicts": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Verdicts",
+      "type": "object"
+    }
+  },
+  "required": [
+    "command",
+    "operation_id",
+    "project",
+    "attachment"
+  ],
+  "title": "Report",
+  "type": "object"
+}

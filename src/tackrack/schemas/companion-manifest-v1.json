@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "Boundary": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_product_templates_and_inert_fixtures": {
+          "default": true,
+          "title": "Allow Product Templates And Inert Fixtures",
+          "type": "boolean"
+        },
+        "attachment_policy": {
+          "default": "contained",
+          "title": "Attachment Policy",
+          "type": "string"
+        },
+        "tracked_bridges": {
+          "default": "deny",
+          "title": "Tracked Bridges",
+          "type": "string"
+        }
+      },
+      "title": "Boundary",
+      "type": "object"
+    },
+    "Check": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Argv",
+          "type": "array"
+        },
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "argv",
+        "cwd"
+      ],
+      "title": "Check",
+      "type": "object"
+    },
+    "Resource": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "root": {
+          "title": "Root",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "root",
+        "path"
+      ],
+      "title": "Resource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "boundary": {
+      "$ref": "#/$defs/Boundary"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/Check"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "companion_id": {
+      "format": "uuid",
+      "title": "Companion Id",
+      "type": "string"
+    },
+    "default_profile": {
+      "default": "manual",
+      "title": "Default Profile",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "project_id": {
+      "format": "uuid",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "resources": {
+      "items": {
+        "$ref": "#/$defs/Resource"
+      },
+      "title": "Resources",
+      "type": "array"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "shipping_contract": {
+      "title": "Shipping Contract",
+      "type": "string"
+    },
+    "workflow_policy": {
+      "title": "Workflow Policy",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project_id",
+    "companion_id",
+    "name",
+    "workflow_policy",
+    "shipping_contract"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

@@ -1,0 +1,10 @@
+# Independent local AI-development environment.
+/.agents
+/.venv
+/dist
+/build
+/.pytest_cache
+/.mypy_cache
+/.ruff_cache
+__pycache__/
+*.py[cod]

@@ -14,6 +14,8 @@ The default companion is exactly product-root `.agents`, with its own `.git` and
 
 Product capabilities must build/test/package/run without the real attachment. Positive package inclusion, isolated fixture tests and a standalone standard-library boundary guard establish distinct Git, filesystem, dependency and artifact checks. Synthetic companions are materialised only in temporary test roots. Ordinary checks never depend on the real developer companion.
 
+Scanning also supports the **pre-extraction source layout**: product-owned provider configuration, mixed agent instructions, and ordinary `.agents/skills` content. This is not an invalid scan input or an automatically adopted companion. Read-only inventory preserves Git ownership/revisions, names evidenced tool families, and exposes candidate/retained material and review blockers. Only audit evaluates the target separation policy. Preparing an independent companion in an occupied/tracked slot remains a future explicitly reviewed preservation/index-migration operation.
+
 ## Data and trust
 
 Versioned Pydantic records represent snapshots, byte-safe manifests, evidence, per-capability coverage, components, typed relationships, findings and report envelopes. Git committed/index/working revisions remain distinct. Git object IDs remain opaque with declared object format; TackRack identities use SHA-256 over sorted-key, compact, UTF-8 canonical JSON with ASCII escapes, no nonfinite numbers. Callers sort nonsemantic collections. Collection timestamps and local display paths are excluded from content fingerprints; file modes, deletion state, link-target bytes and scope limits are included. Durable registry IDs are UUIDs.

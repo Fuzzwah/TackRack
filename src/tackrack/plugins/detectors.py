@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import posixpath
 import re
 from collections.abc import Iterable
 from typing import Any
@@ -51,6 +52,92 @@ def workflow_harness_actions(text: str) -> list[str]:
     return sorted({use for use in uses if use.split("@", 1)[0].lower() in HOSTED_HARNESS_ACTIONS})
 
 
+def development_surface(path: str, scope: str) -> bool:
+    """Recognise discovery locations, not embedded filename examples in product source."""
+    if path.endswith((".template", ".fixture.json")):
+        return False
+    return (
+        active_path(path)
+        or path.startswith(
+            (".agents/skills/", ".agents/policy/", ".agents/shipping/", ".agents/tools/")
+        )
+        or path
+        in {
+            ".agents/project.toml",
+            ".agents/tackrack.lock.json",
+            ".agents/policy.toml",
+            ".agents/shipping.toml",
+        }
+    )
+
+
+def surface_consumers(path: str) -> list[str]:
+    if posixpath.basename(path) == "AGENTS.md":
+        return ["generic agent-instruction consumers"]
+    consumers = {
+        ".omp": "OMP",
+        ".codex": "Codex",
+        ".claude": "Claude Code",
+        ".cursor": "Cursor",
+    }
+    first = path.split("/", 1)[0]
+    if first in consumers:
+        return [consumers[first]]
+    if posixpath.basename(path) == "CLAUDE.md":
+        return ["Claude Code"]
+    if posixpath.basename(path) == "GEMINI.md":
+        return ["Gemini CLI"]
+    if path == ".cursorrules":
+        return ["Cursor"]
+    if path == ".mcp.json":
+        return ["MCP clients (provider unspecified)"]
+    if path.startswith(".github/") or path == "copilot-instructions.md":
+        return ["GitHub Copilot"]
+    return []
+
+
+def reference_targets(item: EvidenceRecord, optional_store: bool = False) -> list[str]:
+    """Resolve relative links lexically, without accessing any referenced location."""
+    targets: set[str] = set()
+    optional_store = optional_store or bool(
+        re.search(r"--store\b|planningHome\.root|openspec\s+context\b", item.excerpt)
+    )
+    links = list(re.finditer(r"\[[^\]\n]*\]\(\s*(<[^>\n]+>|[^\s)]+)", item.excerpt))
+    for match in links:
+        raw = match.group(1).strip("<>").split("#", 1)[0].split("?", 1)[0]
+        if not raw or re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", raw) or raw.startswith("//"):
+            continue
+        if raw.startswith(("/", "~", "\\")):
+            targets.add(f"external:{raw}")
+            continue
+        source = ".agents/" + (item.path or "") if item.scope == "workbench" else item.path or ""
+        target = posixpath.normpath(posixpath.join(posixpath.dirname(source), raw))
+        if target == ".." or target.startswith("../"):
+            targets.add(f"external:{target}")
+        elif optional_store and target.startswith("openspec/"):
+            targets.add(f"external:{target}")
+        else:
+            prefix = (
+                "workbench"
+                if item.scope == "workbench" and target.startswith(".agents/")
+                else "project"
+            )
+            if prefix == "workbench":
+                target = target.removeprefix(".agents/")
+            targets.add(f"{prefix}:{target}")
+    for match in re.finditer(
+        r"(?<![A-Za-z0-9_./-])(?:scripts|docs|src|openspec)/[A-Za-z0-9_./-]+",
+        item.excerpt,
+    ):
+        if any(link.start() <= match.start() < link.end() for link in links):
+            continue
+        target = match.group(0).rstrip(".")
+        # Store-aware CLI examples do not assert that the caller owns a local root.
+        prefix = "external" if optional_store and target.startswith("openspec/") else "project"
+        targets.add(f"{prefix}:{target}")
+    return sorted(targets)
+
+
 class BoundaryDetector:
     plugin_id = "local-boundary"
     plugin_version = "0.1.0"
@@ -61,7 +148,21 @@ class BoundaryDetector:
         components: list[Component] = []
         relationships: list[Relationship] = []
         findings: list[Finding] = []
-        for item in sorted(evidence, key=lambda e: e.evidence_id):
+        records = sorted(evidence, key=lambda e: e.evidence_id)
+        external_store_scopes = {
+            (item.scope, item.revision)
+            for item in records
+            if item.path is not None
+            and not item.redacted
+            and (
+                development_surface(item.path, item.scope)
+                or item.scope == "workbench"
+                and item.path.startswith(("skills/", "skill-sources/"))
+            )
+            and re.search(r"(?i)\bopenspec\b", item.path + "\n" + item.excerpt)
+            and re.search(r"--store\b|planningHome\.root|openspec\s+context\b", item.excerpt)
+        }
+        for item in records:
             observation = item.payload.get("observation")
             if isinstance(observation, dict) and observation.get("kind") in {
                 "workflow_run",
@@ -114,7 +215,7 @@ class BoundaryDetector:
             if item.path is None or item.kind != "file":
                 continue
             path = item.path
-            active = active_path(path)
+            active = development_surface(path, item.scope)
             bridge_actions: list[str] = []
             if (
                 item.scope == "project"
@@ -171,37 +272,66 @@ class BoundaryDetector:
                     or (path.startswith("tests/") and path.endswith(".py"))
                 )
             )
-            ownership = (
-                "harness_implementation"
-                if active
-                else ("workflow_policy" if item.scope == "workbench" else "project_capability")
+            profile = (item.scope == "workbench" and path.startswith("profiles/")) or (
+                item.scope == "project" and path.startswith(".agents/profiles/")
             )
+            if profile:
+                ownership = "harness_implementation"
+            elif item.scope == "workbench" or path.startswith(".agents/"):
+                authored_path = path.removeprefix(".agents/") if item.scope == "project" else path
+                ownership = (
+                    "project_binding"
+                    if authored_path in {"project.toml", "tackrack.lock.json"}
+                    else "workflow_policy"
+                    if authored_path.startswith(("policy/", "shipping/"))
+                    or authored_path in {"policy.toml", "shipping.toml"}
+                    else "harness_implementation"
+                    if active
+                    or authored_path.startswith(
+                        ("skills/", "skill-sources/", "tools/", "bootstrap/")
+                    )
+                    else "project_knowledge"
+                )
+            else:
+                ownership = "harness_implementation" if active else "project_capability"
             if path.startswith(("docs/", "openspec/", "specs/")) and not active:
                 ownership = "project_knowledge"
             if item.redacted and not inert_test_data:
                 ownership = "secret"
-            if not active and item.scope == "project" and not item.redacted:
+            if not active and not profile and item.scope == "project" and not item.redacted:
                 # Ordinary runtime prompts and tooling implementations stay product-owned.
                 continue
-            consumers = (
-                ["generic agent-instruction consumers"] if path.endswith("AGENTS.md") else []
-            )
+            consumers = surface_consumers(path)
             cid = canonical_digest(
-                [item.scope, item.path_bytes, item.revision, item.payload.get("stage", 0)]
+                [
+                    item.scope,
+                    item.path_bytes or item.path,
+                    item.revision,
+                    item.payload.get("stage", 0),
+                ]
             )
             component = Component(
                 component_id=cid,
                 scope=item.scope,
                 path=path,
-                kind="instruction_surface"
+                kind="profile_source"
+                if profile
+                else "instruction_surface"
                 if active
                 else "companion_source"
                 if item.scope == "workbench"
                 else "product_source",
                 ownership=ownership,
-                disposition="review" if item.redacted else "split" if active else "keep",
+                disposition="review"
+                if item.redacted or item.truncated or profile
+                else "split"
+                if posixpath.basename(path) == "AGENTS.md"
+                else "move"
+                if ownership == "harness_implementation"
+                else "keep",
                 evidence_ids=[item.evidence_id],
                 consumers=consumers,
+                configured="yes" if item.revision == "working" and not profile else "unknown",
             )
             components.append(component)
             if active and item.scope == "project" and item.revision == "working":
@@ -261,18 +391,21 @@ class BoundaryDetector:
                         component_ids=[cid],
                     )
                 )
-            if active and item.excerpt:
+            if item.excerpt and (active or ownership == "harness_implementation"):
                 knowledge = re.search(
-                    r"(?im)^.*(?:architecture|application uses|domain model|event sourcing).*$",
+                    r"(?im)^.*(?:architecture|application uses|domain model|event sourcing|"
+                    r"gameplay|scoring and persistence|project (?:structure|overview)|"
+                    r"runtime|data contracts|repository map).*$",
                     item.excerpt,
                 )
                 workflow = re.search(
-                    r"(?im)^.*(?:reviewed plan|human sign.?off|before completing|/review|agent|workflow).*$",
+                    r"(?im)^.*(?:reviewed plan|human sign.?off|before completing|/review|"
+                    r"/shipit|working conventions|agent|workflow).*$",
                     item.excerpt,
                 )
-                if knowledge and workflow:
+                if knowledge and workflow and posixpath.basename(path) == "AGENTS.md":
                     component.ownership = "mixed"
-                    component.disposition = "split"
+                    component.disposition = "review" if item.truncated else "split"
                     findings.append(
                         make_finding(
                             "TR-A003",
@@ -288,10 +421,14 @@ class BoundaryDetector:
                         (knowledge, "project_knowledge"),
                         (workflow, "workflow_policy"),
                     ):
-                        begin = len(item.excerpt[: match.start()].encode("utf-8"))
-                        end = len(item.excerpt[: match.end()].encode("utf-8"))
+                        begin = item.byte_start + len(item.excerpt[: match.start()].encode("utf-8"))
+                        end = item.byte_start + len(item.excerpt[: match.end()].encode("utf-8"))
                         # Only UTF-8 text without lossy replacement yields exact byte spans.
-                        if "\ufffd" not in item.excerpt and item.payload.get("exact_utf8_excerpt"):
+                        if (
+                            not item.truncated
+                            and "\ufffd" not in item.excerpt
+                            and item.payload.get("exact_utf8_excerpt")
+                        ):
                             component.ownership_spans.append(
                                 {
                                     "byte_start": begin,
@@ -302,16 +439,15 @@ class BoundaryDetector:
                                     else "review",
                                 }
                             )
-                for match in re.finditer(
-                    r"(?:scripts|docs|src|openspec)/[A-Za-z0-9_./-]+", item.excerpt
+                for target in reference_targets(
+                    item, (item.scope, item.revision) in external_store_scopes
                 ):
-                    target = match.group(0).rstrip(".")
                     rid = canonical_digest([cid, target, "references"])
                     relationships.append(
                         Relationship(
                             relationship_id=rid,
                             source_component=cid,
-                            target=f"project:{target}",
+                            target=target,
                             kind="references",
                             evidence_ids=[item.evidence_id],
                             unresolved=True,

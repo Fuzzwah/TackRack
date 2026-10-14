@@ -64,6 +64,17 @@
           "title": "Slot",
           "type": "string"
         },
+        "slot_role": {
+          "default": "absent",
+          "enum": [
+            "absent",
+            "embedded",
+            "independent",
+            "unverified"
+          ],
+          "title": "Slot Role",
+          "type": "string"
+        },
         "snapshot": {
           "anyOf": [
             {
@@ -349,6 +360,131 @@
         "collected_at"
       ],
       "title": "EvidenceRecord",
+      "type": "object"
+    },
+    "ExtractionItem": {
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "component_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Component Ids",
+          "type": "array"
+        },
+        "disposition": {
+          "enum": [
+            "keep",
+            "move",
+            "split",
+            "review"
+          ],
+          "title": "Disposition",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "ownership": {
+          "title": "Ownership",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "references": {
+          "items": {
+            "type": "string"
+          },
+          "title": "References",
+          "type": "array"
+        },
+        "revisions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Revisions",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scope",
+        "path",
+        "ownership",
+        "disposition",
+        "explanation"
+      ],
+      "title": "ExtractionItem",
+      "type": "object"
+    },
+    "ExtractionReadiness": {
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ExtractionItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "status": {
+          "default": "no_candidates",
+          "enum": [
+            "no_candidates",
+            "review_required",
+            "blocked"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "ExtractionReadiness",
       "type": "object"
     },
     "FileEntry": {
@@ -755,6 +891,103 @@
       ],
       "title": "Snapshot",
       "type": "object"
+    },
+    "ToolInventory": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "default": "high",
+          "title": "Confidence",
+          "type": "string"
+        },
+        "configured": {
+          "default": "unknown",
+          "title": "Configured",
+          "type": "string"
+        },
+        "enforced": {
+          "default": "unknown",
+          "title": "Enforced",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "location": {
+          "enum": [
+            "local",
+            "hosted"
+          ],
+          "title": "Location",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "observed": {
+          "default": "unknown",
+          "title": "Observed",
+          "type": "string"
+        },
+        "paths": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "revisions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Revisions",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "tool_id": {
+          "title": "Tool Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool_id",
+        "name",
+        "kind",
+        "location",
+        "scope",
+        "state"
+      ],
+      "title": "ToolInventory",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -822,6 +1055,9 @@
       "title": "Exit Code",
       "type": "integer"
     },
+    "extraction": {
+      "$ref": "#/$defs/ExtractionReadiness"
+    },
     "findings": {
       "items": {
         "$ref": "#/$defs/Finding"
@@ -845,7 +1081,8 @@
       "enum": [
         "pass",
         "fail",
-        "inconclusive"
+        "inconclusive",
+        "not_assessed"
       ],
       "title": "Policy Result",
       "type": "string"
@@ -880,6 +1117,13 @@
       "default": "completed",
       "title": "Status",
       "type": "string"
+    },
+    "tooling": {
+      "items": {
+        "$ref": "#/$defs/ToolInventory"
+      },
+      "title": "Tooling",
+      "type": "array"
     },
     "verdicts": {
       "additionalProperties": {

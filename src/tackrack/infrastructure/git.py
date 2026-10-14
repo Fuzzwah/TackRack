@@ -147,7 +147,18 @@ class GitBroker:
             and args[1] in {"-s", "blob"}
             and re.fullmatch(r"[0-9a-f]{40,64}", args[2]) is not None
         )
-        if args not in self._ALLOWED and not allowed_blob:
+        scoped_discovery = (
+            len(args) > 6
+            and args[:6] == ("ls-files", "--others", "--ignored", "--exclude-standard", "-z", "--")
+            and all(
+                re.fullmatch(
+                    r":\(glob\)\*\*/\.agents/(?!\.git(?:/|$))[A-Za-z.][A-Za-z0-9_.-]*(?:/\*\*)?",
+                    pattern,
+                )
+                for pattern in args[6:]
+            )
+        )
+        if args not in self._ALLOWED and not allowed_blob and not scoped_discovery:
             raise GitError("git_command_not_allowed")
         # Fail if safety-screened configuration changes before invocation.
         if any(path.exists() and str(path) not in self.configs for path in self.config_paths):

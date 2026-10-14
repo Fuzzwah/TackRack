@@ -7,7 +7,7 @@ import os
 import stat
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from tackrack.domain.models import (
     CollectionResult,
@@ -65,6 +65,11 @@ SKIP_COMPANION = {
     "transcripts",
     "credentials",
     ".ssh",
+    "cache",
+    "logs",
+    "raw-sessions",
+    "private",
+    "secrets",
 }
 COMPANION_DIRS = {
     "policy",
@@ -72,6 +77,7 @@ COMPANION_DIRS = {
     "shipping",
     "skills",
     "skill-sources",
+    "instructions",
     "tools",
     "bootstrap",
 } | ACTIVE_DIRS
@@ -85,21 +91,42 @@ COMPANION_FILES = {
 } | ACTIVE_NAMES
 
 
+def credential_path(path: str) -> bool:
+    """Credential filenames and private credential directories have no exportable identity."""
+    return any(
+        part.lower() in {".env", "auth.json", "credentials", "credentials.json", "secrets", ".ssh"}
+        or part.lower().startswith((".env.", "credentials."))
+        for part in Path(path).parts
+    )
+
+
 def companion_content(path: str, full: bool) -> bool:
     parts = Path(path).parts
-    if any(part in SKIP_COMPANION for part in parts) or Path(path).name.lower() in {
-        ".env",
-        "auth.json",
-        "credentials.json",
-        "sessions.json",
-        "transcripts.json",
-    }:
+    if (
+        any(part in SKIP_COMPANION for part in parts)
+        or credential_path(path)
+        or Path(path).name.lower()
+        in {
+            "sessions.json",
+            "transcripts.json",
+        }
+    ):
         return False
     return full or parts[0] in COMPANION_DIRS or (len(parts) == 1 and parts[0] in COMPANION_FILES)
 
 
 def reserved(path: str) -> bool:
     return path == ".agents" or path.startswith(".agents/")
+
+
+def embedded_content(path: str) -> bool:
+    """Only authored companion surfaces are collected from ordinary .agents trees."""
+    parts = Path(path).parts
+    if ".agents" not in parts:
+        return True
+    offset = parts.index(".agents")
+    relative = Path(*parts[offset + 1 :])
+    return bool(relative.parts) and companion_content(str(relative), False)
 
 
 def active_path(path: str) -> bool:
@@ -110,7 +137,7 @@ def active_path(path: str) -> bool:
         Path(path).name in ACTIVE_NAMES
         or any(p in ACTIVE_DIRS for p in parts)
         or (path.startswith(".github/instructions/") and path.endswith(".instructions.md"))
-        or (".agents" in parts and not reserved(path) and "skills" in parts)
+        or (".agents" in parts and "skills" in parts and Path(path).name == "SKILL.md")
     )
 
 
@@ -137,7 +164,7 @@ def path_record(raw: bytes, revision: str, mode: str, **kwargs: Any) -> FileEntr
 def evidence_for(entry: FileEntry, data: bytes, scope: str, kind: str = "file") -> EvidenceRecord:
     original_text = data.decode("utf-8", "replace")
     text, redacted = sanitize(original_text)
-    sensitive_name = Path(entry.path).name.lower() in {".env", "credentials", "auth.json"}
+    sensitive_name = credential_path(entry.path)
     redacted |= sensitive_name
     # Sensitive payloads are never exported, including guessable value hashes.
     digest = "private-sensitive-content" if redacted else digest_bytes(data)
@@ -203,6 +230,8 @@ class SnapshotProbe:
     branch: str | None = None
     common: str | None = None
     configs: dict[str, bytes] = field(default_factory=dict)
+    ignored_discovery: bytes = b""
+    discovery_patterns: tuple[str, ...] = ()
 
     def observe(self, path: Path) -> None:
         if not link_parent(path, self.root):
@@ -225,6 +254,20 @@ class SnapshotProbe:
                     return True
                 if broker.run("ls-files", "--others", "--exclude-standard", "-z") != self.untracked:
                     return True
+                if (
+                    self.discovery_patterns
+                    and broker.run(
+                        "ls-files",
+                        "--others",
+                        "--ignored",
+                        "--exclude-standard",
+                        "-z",
+                        "--",
+                        *self.discovery_patterns,
+                    )
+                    != self.ignored_discovery
+                ):
+                    return True
                 head = (
                     broker.run("rev-parse", "--verify", "HEAD", allow_failure=True)
                     .strip()
@@ -244,11 +287,17 @@ class SnapshotProbe:
 
 
 def bounded_walk(
-    root: Path, scope: str, full: bool, probe: SnapshotProbe | None = None
+    root: Path,
+    scope: str,
+    full: bool,
+    probe: SnapshotProbe | None = None,
+    *,
+    agents_mode: Literal["boundary", "embedded", "none"] = "boundary",
 ) -> tuple[list[bytes], list[str]]:
     paths: list[bytes] = []
     reasons: list[str] = []
     stack = [root]
+    visited = 0
     while stack:
         folder = stack.pop()
         try:
@@ -259,19 +308,29 @@ def bounded_walk(
             reasons.append("inaccessible_directory")
             continue
         for item in children:
+            visited += 1
+            if visited > MAX_PATHS:
+                return paths, reasons + ["path_limit"]
             path = Path(item.path)
             rel = path.relative_to(root)
             parts = rel.parts
             if item.name == ".git" or (scope == "workbench" and item.name in SKIP_COMPANION):
+                if scope == "workbench":
+                    reasons.append("companion_content_excluded")
                 continue
             if scope == "project" and parts[0] == ".agents":
-                continue
+                if agents_mode != "embedded":
+                    continue
+                if len(parts) > 1 and not embedded_content(str(rel)):
+                    reasons.append("embedded_agents_content_excluded")
+                    continue
             if scope == "workbench" and not companion_content(str(rel), full):
+                reasons.append("companion_content_excluded")
                 continue
             if len(paths) >= MAX_PATHS:
                 return paths, reasons + ["path_limit"]
             if item.is_dir(follow_symlinks=False):
-                if (path / ".git").exists():
+                if (path / ".git").exists() or (path / ".git").is_symlink():
                     paths.append(os.fsencode(str(rel)))
                     reasons.append("nested_repository_not_recursed")
                     continue
@@ -309,6 +368,7 @@ def collect_snapshot(
     full: bool = False,
     include_ignored: bool = False,
     git_enabled: bool = True,
+    agents_mode: Literal["boundary", "embedded", "none"] = "boundary",
     probe: SnapshotProbe | None = None,
 ) -> tuple[Snapshot, CollectionResult]:
     snapshot = Snapshot(
@@ -323,6 +383,9 @@ def collect_snapshot(
             "known_ignored_discovery": list(IGNORED_DISCOVERY) if scope == "project" else [],
             "companion_runtime_exclusions": sorted(SKIP_COMPANION) if scope == "workbench" else [],
             "full_companion": full,
+            "agents_mode": agents_mode,
+            "embedded_agents_content": "known authored paths only",
+            "embedded_agents_exclusions": sorted(SKIP_COMPANION),
             "sensitive_content_identity": "raw digests withheld; fingerprint is not an extraction precondition",
         },
     )
@@ -331,6 +394,8 @@ def collect_snapshot(
     broker: GitBroker | None = None
     initial_git = b""
     initial_untracked = b""
+    initial_discovery = b""
+    discovery_patterns: tuple[str, ...] = ()
     git_entries: list[FileEntry] = []
     working_paths: set[bytes] = set()
     if probe:
@@ -390,7 +455,7 @@ def collect_snapshot(
             reasons.append(exc.reason if isinstance(exc, GitError) else "git_metadata_error")
             broker = None
     if broker is None and scope == "project" and include_ignored:
-        walked, walk_reasons = bounded_walk(root, scope, full, probe)
+        walked, walk_reasons = bounded_walk(root, scope, full, probe, agents_mode=agents_mode)
         working_paths.update(walked)
         reasons.extend(walk_reasons)
     elif broker is None:
@@ -401,6 +466,53 @@ def collect_snapshot(
             if (root / name).is_file() and not (root / name).is_symlink()
         )
     if scope == "project":
+        agents_roots: set[str] = set()
+        excluded_agents_roots: set[str] = set()
+        if agents_mode == "embedded":
+            agents_roots.add(".agents")
+            if broker:
+                # Git enumerates only known discovery surfaces, not arbitrary ignored files.
+                discovery_patterns = tuple(
+                    f":(glob)**/.agents/{name}/**" for name in sorted(COMPANION_DIRS)
+                ) + tuple(f":(glob)**/.agents/{name}" for name in sorted(COMPANION_FILES))
+                initial_discovery = broker.run(
+                    "ls-files",
+                    "--others",
+                    "--ignored",
+                    "--exclude-standard",
+                    "-z",
+                    "--",
+                    *discovery_patterns,
+                )
+                for raw in initial_discovery.split(b"\x00"):
+                    if raw and embedded_content(os.fsdecode(raw)):
+                        working_paths.add(raw)
+            for raw in working_paths | {
+                base64.b64decode(entry.path_bytes) for entry in git_entries
+            }:
+                parts = Path(os.fsdecode(raw)).parts
+                if ".agents" in parts:
+                    agents_roots.add(str(Path(*parts[: parts.index(".agents") + 1])))
+        for relative in sorted(agents_roots):
+            path = root / relative
+            if link_parent(path, root):
+                reasons.append("symlink_parent_not_followed")
+                continue
+            if probe:
+                probe.observe(path)
+            if path.is_symlink():
+                working_paths.add(os.fsencode(relative))
+                reasons.append("embedded_agents_symlink_not_followed")
+            elif path.is_dir():
+                if probe:
+                    probe.observe(path / ".git")
+                if (path / ".git").exists() or (path / ".git").is_symlink():
+                    reasons.append("nested_repository_not_recursed")
+                    excluded_agents_roots.add(relative)
+                    continue
+                candidates, walk_reasons = bounded_walk(path, "workbench", False, probe)
+                working_paths.update(os.fsencode(relative) + b"/" + p for p in candidates)
+                reasons.extend(walk_reasons)
         for relative in IGNORED_DISCOVERY:
             path = root / relative
             if link_parent(path, root):
@@ -419,15 +531,32 @@ def collect_snapshot(
         working_paths.update(walked)
         reasons.extend(walk_reasons)
     total = 0
-    # Product Git leaks remain visible as metadata; do not read leaked companion payloads.
+    # Index leak metadata is independent of authorised embedded content collection.
     for entry in git_entries[:MAX_PATHS]:
         snapshot.entries.append(entry)
-        if reserved(os.fsdecode(base64.b64decode(entry.path_bytes))) and scope == "project":
+        rel = os.fsdecode(base64.b64decode(entry.path_bytes))
+        if scope == "project" and ".agents" in Path(rel).parts and credential_path(rel):
+            entry.object_id = None
+            entry.digest = "private-sensitive-content"
+            reasons.append("sensitive_content_identity_withheld")
+        if reserved(rel) and scope == "project":
             result.evidence.append(
                 evidence_for(
                     entry, b"Product Git owns reserved attachment path", scope, "index_leak"
                 )
             )
+            if agents_mode != "embedded":
+                continue
+        if scope == "project" and any(
+            rel == name or rel.startswith(name + "/") for name in excluded_agents_roots
+        ):
+            continue
+        if scope == "project" and ".git" in Path(rel).parts:
+            reasons.append("git_metadata_path_excluded")
+            continue
+        if scope == "project" and ".agents" in Path(rel).parts and not embedded_content(rel):
+            if agents_mode == "embedded":
+                reasons.append("embedded_agents_content_excluded")
             continue
         if scope == "workbench" and not companion_content(entry.path, full):
             continue
@@ -445,7 +574,18 @@ def collect_snapshot(
     observations: list[tuple[Path, tuple[int, int, int, int]]] = []
     for raw in sorted(working_paths)[:MAX_PATHS]:
         rel = os.fsdecode(raw)
-        if scope == "project" and reserved(rel):
+        if scope == "project" and any(
+            rel == name or rel.startswith(name + "/") for name in excluded_agents_roots
+        ):
+            continue
+        if scope == "project" and reserved(rel) and agents_mode != "embedded":
+            continue
+        if scope == "project" and ".git" in Path(rel).parts:
+            reasons.append("git_metadata_path_excluded")
+            continue
+        if scope == "project" and ".agents" in Path(rel).parts and not embedded_content(rel):
+            if agents_mode == "embedded":
+                reasons.append("embedded_agents_content_excluded")
             continue
         if scope == "workbench" and not companion_content(rel, full):
             continue
@@ -515,6 +655,19 @@ def collect_snapshot(
             changed |= (
                 broker.run("ls-files", "--others", "--exclude-standard", "-z") != initial_untracked
             )
+            if discovery_patterns:
+                changed |= (
+                    broker.run(
+                        "ls-files",
+                        "--others",
+                        "--ignored",
+                        "--exclude-standard",
+                        "-z",
+                        "--",
+                        *discovery_patterns,
+                    )
+                    != initial_discovery
+                )
             current_head = (
                 broker.run("rev-parse", "--verify", "HEAD", allow_failure=True)
                 .strip()
@@ -524,6 +677,15 @@ def collect_snapshot(
             changed |= current_head != snapshot.head
         except GitError:
             changed = True
+    # Deliberate scope/privacy boundaries are not missing authorised coverage.
+    scope_exclusions = {
+        "embedded_agents_content_excluded",
+        "companion_content_excluded",
+        "git_metadata_path_excluded",
+        "sensitive_content_identity_withheld",
+    }
+    snapshot.scope["exclusion_diagnostics"] = sorted(set(reasons) & scope_exclusions)
+    reasons = [reason for reason in reasons if reason not in scope_exclusions]
     snapshot.reasons = sorted(set(reasons + (["changed_during_scan"] if changed else [])))
     snapshot.status = "changed_during_scan" if changed else "incomplete" if reasons else "stable"
     snapshot.entries.sort(key=lambda e: (e.path_bytes, e.revision, e.stage))
@@ -544,6 +706,8 @@ def collect_snapshot(
             probe.head, probe.common = snapshot.head, snapshot.git_common_dir
             probe.branch = snapshot.branch
             probe.configs = broker.configs
+            probe.ignored_discovery = initial_discovery
+            probe.discovery_patterns = discovery_patterns
     result.evidence.sort(key=lambda e: e.evidence_id)
     for capability in ("git_state", "local_content"):
         result.coverage.append(

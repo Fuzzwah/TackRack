@@ -27,15 +27,21 @@ uv run --locked tackrack plugins list
 uv run --locked tackrack scan . --sources local-git,github --remote origin --allow-network
 ```
 
-`scan` asks **what AI development machinery can be found in the requested scope**. `audit` evaluates the collected evidence against ownership, containment, and supported configuration rules. Neither executes project/harness code, fixes files, or changes Git/hosting settings. Both save private reports to external state. `--offline` prohibits network access, so it cannot establish the absence of remote AI tooling. A policy pass applies only to the assessed rules and scope—not universal isolation or verified product independence.
+`scan` asks **what AI development machinery can be found in the requested scope** and produces an extraction-review inventory. It does not require the project to be separated already: root `AGENTS.md`, tracked `.omp` integration, and a product-owned `.agents/skills` directory are valid inputs. Separation policy is `not_assessed`; a completed discovery scan does not fail just because those inputs are embedded. `audit` separately evaluates the proposed ownership/containment boundary. Neither executes project/harness code, fixes files, or changes Git/hosting settings. Both save private reports externally. `--offline` leaves remote evidence unassessed; static results never prove universal isolation or product independence.
 
 ## Current implementation
 
 Implemented commands: `scan`, `audit`, `register`, and `plugins list`. The foundation includes local Git HEAD/index/working snapshots, bounded project/companion discovery, evidence/findings/relationships, manual-profile static assessment, local registration, plugin metadata, and restricted GitHub identity, workflow-definition references, workflow-run summaries, and visible ruleset reads.
 
-**The current inventory is still primarily file/configuration evidence, not a complete tool-by-tool harness assessment.** Detection is catalogue-scoped; runtime activity and enforcement remain unknown unless supported by collected evidence. Ambient/user-level configuration is not inspected by default. Pull-request interactions and installed-integration policy are currently unsupported.
+The inventory names evidenced tooling and workflow families (including OMP, OpenSpec, generic agent instructions, shared shipping skills, intended profiles, and known hosted-agent callers), with paths and HEAD/index/working revisions retained separately. It distinguishes configured sources, disabled/intended profiles, historical declarations, and observed hosting metadata—not installed binaries or enforced gates. Extraction review distinguishes harness candidates, mixed instructions, retained project resources, and blockers. Detection remains catalogue-scoped; ambient configuration, PR interactions, and installed-integration policy are not assessed by default or are unsupported.
 
 No AI account or companion is required for local scanning. Hosting reads require explicit `--allow-network`; `--offline` takes precedence. Real harness launch, extraction, attach/switch/detach, approval gates, and shipping are **not implemented**.
+
+### Scanning before extraction
+
+A normal project may own both product code and AI-development machinery. TackRack preserves that existing layout during discovery. An ordinary `.agents` directory is labelled **embedded product source**, not automatically adopted as an independent companion; its tracked authored skills/configuration are inspected in the product namespace. A valid independent companion remains a separate scope.
+
+The review inventory can propose moving harness-only native payloads, splitting mixed instructions, and keeping architecture, tests, build/CI capabilities, runtime AI, and OpenSpec requirements/history in the product. Truncated or sensitive inputs, unresolved references, external OpenSpec store selection, dirty affected sources, and an occupied/tracked `.agents` target require review. These are **not executable migration operations**: no files are moved, untracked, overwritten, or deleted.
 
 ## Product and AI workbench ownership
 

@@ -26,14 +26,54 @@ def markdown(report: Report, *, display_timezone: str = "UTC") -> str:
     lines = [
         f"# TackRack {report.command}",
         "",
-        f"Policy **{report.policy_result}**; coverage **{report.coverage_result}**; snapshot **{report.snapshot_status}**.",
+        (
+            f"Discovery completed; separation policy **not assessed**; coverage **{report.coverage_result}**; snapshot **{report.snapshot_status}**."
+            if report.command == "scan"
+            else f"Policy **{report.policy_result}**; coverage **{report.coverage_result}**; snapshot **{report.snapshot_status}**."
+        ),
         f"Collected: {local_time.isoformat()} ({cell(display_timezone)}); operation: `{report.operation_id}`.",
         "",
+        "## Detected AI development tooling",
+        "",
+    ]
+    for location, heading in (
+        ("local", "Local harnesses and workflow"),
+        ("hosted", "Hosted integrations"),
+    ):
+        lines += [
+            f"### {heading}",
+            "",
+            "| Tool / workflow | State | Evidence paths | Configured | Observed | Enforced |",
+            "|---|---|---|---|---|---|",
+        ]
+        tools = [tool for tool in report.tooling if tool.location == location]
+        for tool in tools:
+            paths = ", ".join(tool.paths)
+            lines.append(
+                f"| {cell(tool.name)} ({cell(tool.scope)}) | {cell(tool.state)} | {cell(paths)} | {cell(tool.configured)} | {cell(tool.observed)} | {cell(tool.enforced)} |"
+            )
+        if not tools:
+            if location == "hosted" and any(
+                c.source_id == "github" and c.status != "complete" for c in report.coverage
+            ):
+                lines.append(
+                    "Hosting evidence is unassessed/incomplete; no absence of remote AI tooling is established."
+                )
+            else:
+                lines.append(
+                    "No tooling identified by the current catalogue in the declared scope; not a universal absence claim."
+                )
+        lines += [""]
+        limits = sorted({limit for tool in tools for limit in tool.limitations})
+        lines += [f"- {cell(limit)}" for limit in limits]
+        if tools:
+            lines += [""]
+    lines += [
         "## Ownership and scope",
         "",
         f"Product root: `{cell(report.project.root)}`; common Git directory: `{cell(report.project.git_common_dir)}`.",
         f"Product HEAD: `{report.project.head or 'no collected HEAD: unborn or unavailable'}`; fingerprint: `{report.project.fingerprint}`.",
-        f"Attachment: {report.attachment.kind}, {report.attachment.trust}, registered={report.attachment.registered}.",
+        f"Attachment slot: {report.attachment.kind}; role **{report.attachment.slot_role}**; {report.attachment.trust}; registered={report.attachment.registered}.",
         f"Exclusion effective: {report.attachment.exclusion_effective}; independence: {report.attachment.independent}.",
     ]
     if report.attachment.snapshot:
@@ -46,19 +86,17 @@ def markdown(report: Report, *, display_timezone: str = "UTC") -> str:
     lines += [f"| {cell(k)} | {cell(v)} |" for k, v in sorted(report.verdicts.items())]
     lines += [
         "",
-        "## Inventory",
+        "## Ownership and extraction candidates",
         "",
-        "| Scope / path / revision | Ownership | Disposition | Configured | Referenced | Observed | Enforced |",
-        "|---|---|---|---|---|---|---|",
+        "| Scope / path | Revisions | Ownership | Proposed disposition | Review / blockers |",
+        "|---|---|---|---|---|",
     ]
-    for c in report.components:
+    for item in report.extraction.items:
         lines.append(
-            f"| {cell(c.scope + ':' + c.path)} | {c.ownership} | {c.disposition} | {c.configured} | {c.referenced} | {c.observed} | {c.enforced} |"
+            f"| {cell(item.scope + ':' + item.path)} | {cell(', '.join(item.revisions))} | {cell(item.ownership)} | {item.disposition} | {cell('; '.join(item.blockers) or item.explanation)} |"
         )
-    if not report.components:
-        lines.append(
-            "| No development surfaces found in declared scope | — | — | unknown | unknown | unknown | unknown |"
-        )
+    if not report.extraction.items:
+        lines.append("No extraction candidates identified within the declared scope.")
     lines += [
         "",
         "## Coverage",
@@ -92,11 +130,14 @@ def markdown(report: Report, *, display_timezone: str = "UTC") -> str:
         lines.append(
             f"- {r.kind}: `{r.source_component}` → `{cell(r.target)}`; unresolved={r.unresolved}; evidence={','.join(r.evidence_ids)}."
         )
-    dispositions: dict[str, int] = {}
-    for c in report.components:
-        dispositions[c.disposition] = dispositions.get(c.disposition, 0) + 1
     lines += [
-        f"Disposition counts: {json.dumps(dispositions, sort_keys=True)}. Extraction is not implemented; all changes require separate reviewed operations.",
+        f"Extraction readiness: **{report.extraction.status}**. This is an inventory for review, not an executable plan or proof of equivalent relocated behavior.",
+        "",
+    ]
+    lines += ["- Blocker: " + cell(reason) for reason in report.extraction.blockers]
+    lines += ["- Limit: " + cell(reason) for reason in report.extraction.limitations]
+    lines += [
+        "Extraction is not implemented. Preserve project knowledge, shared checks and existing .agents bytes; no move, index cleanup or adoption is performed.",
         "",
         "## Evidence",
         "",
@@ -108,7 +149,11 @@ def markdown(report: Report, *, display_timezone: str = "UTC") -> str:
     lines += ["", "## Compatibility, limits, and next actions", ""]
     if "profile_assessment" in report.attachment.metadata:
         lines += [
-            cell(json.dumps(report.attachment.metadata["profile_assessment"], sort_keys=True)),
+            "```json\n"
+            + json.dumps(report.attachment.metadata["profile_assessment"], sort_keys=True, indent=2)
+            .replace("<", "\\u003c")
+            .replace(">", "\\u003e")
+            + "\n```",
             "",
         ]
     lines += ["- " + cell(limit) for limit in report.limitations]

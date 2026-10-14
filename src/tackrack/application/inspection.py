@@ -26,6 +26,7 @@ from tackrack.infrastructure.git import (
 from tackrack.infrastructure.state import Store, user_roots
 from tackrack.plugins.contracts import CollectionRequest, SourceContext, SourceProbeRequest
 from tackrack.plugins.detectors import BoundaryDetector, make_finding
+from tackrack.plugins.inventory import build_inventory
 from tackrack.plugins.manual import ManualAdapter, read_manifest
 from tackrack.plugins.sources.github import GitHubSource
 from tackrack.plugins.sources.local_git import SnapshotProbe, collect_snapshot
@@ -75,6 +76,7 @@ def inspect(
     binding = store.by_project(root)
     slot = root / ".agents"
     attachment = Attachment(slot=str(slot))
+    attachment.slot_role = "absent" if not slot.exists() and not slot.is_symlink() else "unverified"
     workbench: Path | None = None
     if slot.is_symlink():
         attachment.kind = "symlink"
@@ -101,11 +103,25 @@ def inspect(
         attachment.trust = "trusted" if binding.get("trust_policy") else "untrusted"
     else:
         attachment.layout = "nested" if workbench else None
+    if workbench == slot and not binding and not os.path.lexists(slot / ".git"):
+        # An ordinary .agents directory is source material to inspect, not an adopted companion.
+        attachment.slot_role = "embedded"
+        attachment.independent = False
+        attachment.layout = None
+        attachment.metadata["reason"] = "product_owned_agents_directory"
+        workbench = None
     user_roots(inspected_roots(root, workbench))
     project_probe = SnapshotProbe(root)
     companion_probe: SnapshotProbe | None = None
     project, collected = collect_snapshot(
-        root, include_ignored=include_ignored, probe=project_probe
+        root,
+        include_ignored=include_ignored,
+        probe=project_probe,
+        agents_mode="none"
+        if attachment_mode == "none"
+        else "embedded"
+        if attachment.slot_role == "embedded"
+        else "boundary",
     )
     project.project_id, project.checkout_id = store.identity(root)
     if binding:
@@ -166,6 +182,7 @@ def inspect(
         except GitError as exc:
             attachment.independent = False
             identity["reason"] = exc.reason
+        attachment.slot_role = "independent" if attachment.independent else "unverified"
         if attachment_mode != "none":
             companion_probe = SnapshotProbe(workbench)
             paired, evidence = collect_snapshot(
@@ -182,13 +199,14 @@ def inspect(
             attachment.snapshot = paired
             report.evidence.extend(evidence.evidence)
             report.coverage.extend(evidence.coverage)
+    identity["slot_role"] = attachment.slot_role
     attachment.metadata.update(identity)
     attachment_evidence = EvidenceRecord(
         evidence_id=canonical_digest(["attachment_identity", identity]),
         source_id="local-git",
         kind="attachment_identity",
         revision="metadata",
-        scope="workbench",
+        scope="project" if attachment.slot_role == "embedded" else "workbench",
         digest=canonical_digest(identity),
         collected_at=utc_now(),
         payload=identity,
@@ -255,6 +273,9 @@ def inspect(
         report.evidence
     )
     for edge in report.relationships:
+        if not edge.target.startswith("project:"):
+            # Optional external specification stores are evidence, never authority to traverse.
+            continue
         target = edge.target.removeprefix("project:")
         parts = Path(target).parts
         if ".." in parts or Path(target).is_absolute():
@@ -266,7 +287,7 @@ def inspect(
                 for p in (destination, *destination.parents)
                 if p != root and p.is_relative_to(root)
             )
-            edge.unresolved = has_link or not destination.is_file()
+            edge.unresolved = has_link or not destination.exists()
         if edge.unresolved:
             report.findings.append(
                 make_finding(
@@ -305,7 +326,7 @@ def inspect(
                 [leak.evidence_id],
             )
         )
-    if workbench and attachment.exclusion_effective is not True:
+    if attachment.kind != "absent" and attachment.exclusion_effective is not True:
         report.findings.append(
             make_finding(
                 "TR-A017",
@@ -474,6 +495,58 @@ def inspect(
     report.exit_code = (
         4 if unstable else 1 if fail else 3 if report.policy_result == "inconclusive" else 0
     )
+    if command == "scan":
+        # Discover existing development machinery; separation is an audit/target concern.
+        report.policy_result = "not_assessed"
+        boundary_rules = {"TR-A001", "TR-A007", "TR-A017", "TR-A018", "TR-A019"}
+        report.findings = [f for f in report.findings if f.rule_id not in boundary_rules]
+        report.verdicts = {
+            "product_git_boundary": "not_assessed",
+            "committed_boundary": "not_assessed",
+            "local_containment": "not_assessed",
+            "profile_configuration": profile_status,
+            "product_independence": "not_verified",
+            "attachment_trust": attachment.trust,
+        }
+        report.exit_code = 4 if unstable else 3 if local_partial or unassessed_required else 0
+    report.tooling, report.extraction = build_inventory(report)
+    extraction = report.extraction
+    candidates = [item for item in extraction.items if item.disposition != "keep"]
+    if attachment.slot_role == "embedded" and candidates:
+        extraction.blockers.append(
+            "Existing product-owned .agents must be preserved/reviewed before using it as an independent target."
+        )
+    if index_leaks and candidates:
+        extraction.blockers.append(
+            "Product-tracked .agents paths require exact reviewed index removal; scan does not untrack them."
+        )
+    if unstable or local_partial:
+        extraction.status = "blocked"
+        extraction.blockers.append(
+            "Collection is unstable or incomplete; obtain a stable declared source snapshot before planning extraction."
+        )
+    source_entries = {
+        (entry.path, entry.revision): entry for entry in project.entries if entry.stage == 0
+    }
+    dirty_sources: list[str] = []
+    for candidate in candidates:
+        if candidate.scope != "project":
+            continue
+        head_entry = source_entries.get((candidate.path, "head"))
+        index_entry = source_entries.get((candidate.path, "index"))
+        working_entry = source_entries.get((candidate.path, "working"))
+        if (head_entry and index_entry and head_entry.object_id != index_entry.object_id) or (
+            index_entry and working_entry and index_entry.digest != working_entry.digest
+        ):
+            dirty_sources.append(candidate.path)
+    if dirty_sources:
+        extraction.blockers.append(
+            "Affected sources have staged/working changes; preserve them and review a clean-source precondition before future application: "
+            + ", ".join(sorted(set(dirty_sources)))
+        )
+    extraction.blockers = sorted(set(extraction.blockers))
+    if candidates and extraction.status == "no_candidates":
+        extraction.status = "review_required"
     if report.errors:
         report.exit_code = 2
     report.evidence.sort(key=lambda e: e.evidence_id)

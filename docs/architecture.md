@@ -6,6 +6,7 @@
 - `plugins/sources/local_git.py`: separate HEAD/index/working manifests, bounded non-following file reads, ignored discovery exceptions and exact root attachment partition with tracked leaks visible. Private fresh-scan witnesses cover the full operation, including the hosting/evaluation interval; no witnesses are imported from saved reports.
 - `infrastructure/http.py`, `plugins/sources/github.py`: exact-origin GitHub HTTP broker and normalized per-capability collection.
 - `plugins/detectors.py`: pure static discovery, mixed-prose proposals and reference edges. No fetch/execute/mutation API.
+- `plugins/inventory.py`: pure named-tool/revision reconciliation and extraction-review items. Embedded harness sources remain product evidence; project resources/spec history stay kept. External specification-store selection is unresolved evidence, not authority to read or execute another root. Scan discovery is separate from audit policy enforcement.
 - `plugins/manual.py`: portable manifest validation and no-process manual compatibility.
 - `infrastructure/state.py`: schema-v1 SQLite binding/inspection/note store, private immutable report blobs, external user roots. No approvals are inferred from notes.
 - `cli/`: only working commands and shared report renderers. `plugins list` imports no third-party entry points.

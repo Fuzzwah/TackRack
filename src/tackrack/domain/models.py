@@ -167,6 +167,43 @@ class Finding(Record):
     limitations: list[str] = Field(default_factory=list)
 
 
+class ToolInventory(Record):
+    tool_id: str
+    name: str
+    kind: str
+    location: Literal["local", "hosted"]
+    scope: str
+    state: str
+    paths: list[str] = Field(default_factory=list)
+    revisions: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
+    configured: str = "unknown"
+    observed: str = "unknown"
+    enforced: str = "unknown"
+    confidence: str = "high"
+    limitations: list[str] = Field(default_factory=list)
+
+
+class ExtractionItem(Record):
+    scope: str
+    path: str
+    ownership: str
+    disposition: Literal["keep", "move", "split", "review"]
+    revisions: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
+    component_ids: list[str] = Field(default_factory=list)
+    references: list[str] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)
+    explanation: str
+
+
+class ExtractionReadiness(Record):
+    status: Literal["no_candidates", "review_required", "blocked"] = "no_candidates"
+    items: list[ExtractionItem] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+
+
 class Attachment(Record):
     slot: str
     kind: str = "absent"
@@ -176,6 +213,7 @@ class Attachment(Record):
     independent: bool | None = None
     exclusion_effective: bool | None = None
     snapshot: Snapshot | None = None
+    slot_role: Literal["absent", "embedded", "independent", "unverified"] = "absent"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -191,9 +229,11 @@ class Report(Record):
     components: list[Component] = Field(default_factory=list)
     relationships: list[Relationship] = Field(default_factory=list)
     findings: list[Finding] = Field(default_factory=list)
+    tooling: list[ToolInventory] = Field(default_factory=list)
+    extraction: ExtractionReadiness = Field(default_factory=ExtractionReadiness)
     errors: list[dict[str, str]] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
-    policy_result: Literal["pass", "fail", "inconclusive"] = "inconclusive"
+    policy_result: Literal["pass", "fail", "inconclusive", "not_assessed"] = "inconclusive"
     coverage_result: Literal["complete", "partial"] = "partial"
     snapshot_status: Literal["current", "historical", "unstable"] = "current"
     verdicts: dict[str, str] = Field(default_factory=dict)
